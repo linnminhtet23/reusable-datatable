@@ -1,24 +1,25 @@
-# Stillpoint — reusable data table assessment
+# Stillpoint Data Table
 
-A self-contained React + TypeScript studio dashboard for Part 2 of the Rezerv frontend engineering assessment. It includes a class timetable using inline attendee data and a second programs dataset using controlled, server-style sorting, pagination, and on-demand child loading.
+Part 2 of the Rezerv frontend assessment: a studio dashboard built with React and TypeScript. The reusable table was built from scratch without a table library.
 
-## Run locally
+- [Live demo](https://reusable-datatable.vercel.app/)
+- [GitHub repository](https://github.com/linnminhtet23/reusable-datatable)
+
+## Setup
 
 ```bash
 npm install
 npm run dev
 ```
 
-Production checks:
-
 ```bash
 npm run lint
 npm run build
 ```
 
-## Component API
+## Data table
 
-`DataTable<T, TChild>` is implemented from scratch in `src/components/DataTable.tsx`. It is generic over both parent and child row shapes. The minimum API is:
+`DataTable<T, TChild>` is generic and driven by column definitions. Each column provides an accessor, label, width, sorting option, pinned state, and optional custom cell renderer.
 
 ```ts
 type ColumnDef<T> = {
@@ -29,43 +30,29 @@ type ColumnDef<T> = {
   sortable?: boolean
   width?: number
   pinned?: boolean
-  align?: 'left' | 'center' | 'right'
 }
 ```
 
-Columns own value access, display width, sorting eligibility, optional pinning, and custom rendering. The table only knows how to read this contract; it has no knowledge of classes, attendees, programs, or members.
+The timetable uses client-side sorting and pagination. The Programs demo uses controlled state and mocked server-side requests. Both include artificial latency so loading states are visible.
 
-## Client vs. server strategy
+Rows support two expansion modes:
 
-Sort and pagination state can be uncontrolled (`defaultSort`, `defaultPagination`) or controlled (`sort`, `pagination`, plus change callbacks). In client mode, memoized rows are sorted and sliced locally. In manual mode, the table emits changes and renders the page supplied by the parent along with `totalCount`. Invalid sort keys fall back to the original order, and pages are normalized into the valid range.
+- Inline attendees included with the class data
+- Members fetched when a program is first expanded
 
-The timetable demonstrates client mode. The Programs API demo uses the same component in controlled/manual mode with artificial network latency.
+Fetched children are cached by row ID. Loading, empty, error, and retry states are handled per row.
 
-## Expandable rows
+The first data column uses `position: sticky`. On smaller screens, the table scrolls horizontally and adds a shadow when content moves under the pinned column.
 
-The `expandable` contract accepts either `getInlineChildren(row)` or `loadChildren(row)`. Inline attendee data renders immediately. Lazy program members are fetched once on first expansion and cached by row ID. Each row has independent loading and error state, including retry. Empty child arrays render an explicit empty message. A grid-row transition provides smooth expand/collapse without measuring layout in JavaScript.
+## Decisions
 
-## Sticky column
+The table manages sorting, pagination, and expanded rows when used in uncontrolled mode. In controlled mode, the parent owns sorting, pagination, and remote data. Local React state was enough for this project, so I did not add a state-management library.
 
-Pinned cells use `position: sticky` and a fixed left offset after the expand control. The table viewport owns horizontal scrolling. Its scroll event toggles a shadow only after content moves beneath the pinned column, providing a clear depth cue on narrow screens.
+The table uses semantic HTML and keyboard-accessible buttons. Sorting and pagination are memoized, and reduced-motion preferences are respected.
 
-## State management
+## Assumptions
 
-Local React state is sufficient for UI state and the mocked requests. The reusable table owns state only when its consumer does not control it. Remote data and request state remain in the parent. This keeps the component predictable without adding a global store or request library for a small, self-contained app.
-
-## Accessibility and performance
-
-- Semantic `table`, `thead`, `tbody`, column headers, and scoped header cells.
-- Sort and expand actions are keyboard-focusable buttons with descriptive ARIA labels and `aria-expanded`.
-- Skeletons match the live column layout; loading, empty, initial error, child error, and empty-child states are distinct.
-- Sorting and pagination are memoized; lazy child responses are cached.
-- Horizontal scrolling preserves the pinned identity column on small viewports.
-- Reduced-motion preferences disable decorative transitions and shimmer movement.
-
-## Tradeoffs and assumptions
-
-- The mock API is in-memory and intentionally delayed, but its controlled contract mirrors a production endpoint.
-- Only expanded content for the visible page is mounted, keeping large datasets responsive.
-- Server search/filtering and row selection are outside the requested scope.
-- The `p-3` programs request fails once on purpose so the child-level retry state can be evaluated.
-- Dates and studio time are presentation mock data; no timezone conversion is needed.
+- Mock requests are stored in memory and delayed to behave like API calls.
+- Search, row selection, and a real backend are outside the task scope.
+- Program `p-3` fails on its first child request to demonstrate the retry state.
+- Dates and times are mock studio data and do not require timezone conversion.
